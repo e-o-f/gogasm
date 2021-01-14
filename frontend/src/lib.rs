@@ -1,27 +1,57 @@
 use wasm_bindgen::prelude::*;
-use web_sys::console;
+use wasm_bindgen::JsCast;
+use web_sys::{ErrorEvent, MessageEvent, WebSocket};
 
+macro_rules! console_log {
+    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+}
 
-// When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
-// allocator.
-//
-// If you don't want to use `wee_alloc`, you can safely delete this.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
 
-
-// This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
-pub fn main_js() -> Result<(), JsValue> {
-    // This provides better error messages in debug mode.
-    // It's disabled in release mode so it doesn't bloat up the file size.
-    #[cfg(debug_assertions)]
-    console_error_panic_hook::set_once();
+pub fn start_websocket() -> Result<(), JsValue> {
+    // Connect to an echo server
+    let ws = WebSocket::new("ws://localhost:5001")?;
+    // For small binary messages, like CBOR, Arraybuffer is more efficient than Blob handling
+    ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
+    // create callback
+    let onmessage_callback = Closure::wrap(Box::new(move |e: MessageEvent| {
+        // Handle difference Text/Binary,...
+        if e.data().is_string() {
+        	console_log!("Is string!");
+        }
+        
+        if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
+            console_log!("message event, received Text: {:?}", txt);
+        } else {
+            console_log!("message event, received Unknown: {:?}", e.data());
+        }
+    }) as Box<dyn FnMut(MessageEvent)>);
+    // set message event handler on WebSocket
+    ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
+    // forget the callback to keep it alive
+    onmessage_callback.forget();
 
+    let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
+        console_log!("error event: {:?}", e);
+    }) as Box<dyn FnMut(ErrorEvent)>);
+    ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+    onerror_callback.forget();
 
-    // Your code goes here!
-    console::log_1(&JsValue::from_str("Hello world!"));
+    let cloned_ws = ws.clone();
+    let onopen_callback = Closure::wrap(Box::new(move |_| {
+        console_log!("socket opened");
+        match cloned_ws.send_with_str("ping") {
+            Ok(_) => console_log!("message successfully sent"),
+            Err(err) => console_log!("error sending message: {:?}", err),
+        }
+    }) as Box<dyn FnMut(JsValue)>);
+    ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
+    onopen_callback.forget();
 
     Ok(())
 }
