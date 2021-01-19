@@ -28,6 +28,7 @@ func main() {
 	http.Handle("/", &app.Handler{
 		Name:        "Hello",
 		Description: "An Hello World! example",
+    Styles: []string{"./web/index.css"},
 	})
 
 	err := http.ListenAndServe(":8000", nil)

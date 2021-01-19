@@ -1,0 +1,16 @@
+{
+  "name": "go-app",
+  "version": "1.0.0",
+  "description": "https://go-app.dev/start",
+  "main": "index.js",
+  "scripts": {
+    "sass": "gulp sass"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "^4.0.2",
+    "gulp-sass": "^4.1.0",
+    "node-sass": "^5.0.0"
+  }
+}

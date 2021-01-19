@@ -21,6 +21,7 @@ func (h *input) Render() app.UI {
 		app.Input().
 			Value(h.Value).
 			OnChange(h.OnInputChange),
+		app.If(h.Value == "show", app.Input().Value("Yo")),
 	)
 }
 
